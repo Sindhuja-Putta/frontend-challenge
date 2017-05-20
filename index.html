@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Twitter trends test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+       
+    </style>
+    <script src="amcharts/amcharts.js"></script>
+    <script src="amcharts/pie.js"></script>
+    <script src="amcharts/plugins/export/export.min.js"></script>
+    <link rel="stylesheet" href="amcharts/plugins/export/export.css" type="text/css" media="all" />
+    <script src="https:amcharts/themes/light.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+    <script type="text/javascript">
+        
+        var chart = AmCharts.makeChart("chartdiv", {
+          "type": "pie",
+          "dataProvider": [],
+          "valueField": "Trends",
+          "titleField": "Country",
+          "labelRadius": 5,
+          "radius": "30%",
+          "innerRadius": "20%",
+          "labelText": "[[title]]",
+          "export": {
+            "enabled": true
+          }
+        });
+
+function updateChart() {
+  chart.dataProvider = [];
+  for (var i = 0; i <= 4; i++) {
+    if (Number(document.getElementById('value-' + i).value)) {
+      chart.dataProvider.push({
+        "country": document.getElementById('title-' + i).value,
+        "trends": Number(document.getElementById('value-' + i).value)
+      })
+    }
+  }
+  chart.validateData();
+}
+    </script>
+
+    <script>
+        var sourceCountryTrends = [], destCountryTrends = [], resultTrends = [];
+        var chartData = [];
+        $(document).ready(function () {
+
+            var ddlCountries = $('#ddlCountries');
+            var ddlDestCountries = $('#ddlDestCountries');
+            $('#ddlCountries,ddlDestCountries').empty();
+            ddlCountries.append("<option value=Select>Select</option>");
+            ddlDestCountries.append("<option value=Select>Select</option>");
+
+            $.ajax({
+                url: "http://localhost:3001/countries/",
+                type: "Get",
+                success: function (data) {
+                    for (var i = 0; i < data.countries.length; i++) {
+                        ddlCountries.append($("<option value=" + data.countries[i] + ">" + data.countries[i] + "</option>"));
+                        ddlDestCountries.append($("<option value=" + data.countries[i] + ">" + data.countries[i] + "</option>"));
+                    }
+                },
+                error: function (msg) { alert(msg); }
+            });
+
+            $('#ddlCountries').change(function () {
+                findCommonTrends($(this).val(), $('#ddlDestCountries').val());
+            });
+
+            $('#ddlDestCountries').change(function () {
+                findCommonTrends($('#ddlCountries').val(), $(this).val());
+
+            });
+
+            function findCommonTrends(sourceCountry, destCountry) {
+                sourceCountryTrends = [];
+                destCountryTrends = [];
+                resultTrends = [];
+                chartData=[];
+
+                $('#divCommonTrends').empty();
+                if (sourceCountry != 'Select') {
+                    $.ajax({
+                        url: "http://localhost:3001/countries/" + sourceCountry + "/trends/",
+                        type: "Get",
+                        async: false,
+                        success: function (data) {
+                            for (var i = 0; i < data.trends.length; i++) {
+                                sourceCountryTrends.push(data.trends[i].name);
+                            }
+                        },
+                        error: function (msg) { alert(msg); }
+                    });
+                }
+
+                if (destCountry != 'Select') {
+                    $.ajax({
+                        url: "http://localhost:3001/countries/" + destCountry + "/trends/",
+                        type: "Get",
+                        async: false,
+                        success: function (data) {
+                            for (var i = 0; i < data.trends.length; i++) {
+                                destCountryTrends.push(data.trends[i].name);
+                            }
+                        },
+                        error: function (msg) { alert(msg); }
+                    });
+                }
+
+                if (sourceCountryTrends.length > 0 && destCountryTrends.length == 0) {
+                    for (var i = 0; i < sourceCountryTrends.length; i++) {
+                        $('#divCommonTrends').append("<div>" + sourceCountryTrends[i] + "</div>");
+                        resultTrends.push(sourceCountryTrends[i]);
+                    }
+                }
+                if (destCountryTrends.length > 0 && sourceCountryTrends.length == 0) {
+                    for (var i = 0; i < destCountryTrends.length; i++) {
+                        $('#divCommonTrends').append("<div>" + destCountryTrends[i] + "</div>");
+                        resultTrends.push(destCountryTrends[i]);
+                    }
+                }
+
+                if (destCountryTrends.length > 0 && sourceCountryTrends.length > 0) {
+                    $('#divCommonTrends').empty();
+                    var commonTrends = [];
+                    commonTrends = sourceCountryTrends.filter(function (n) {
+                        return destCountryTrends.indexOf(n) !== -1;
+                    });
+                    for (var i = 0; i < commonTrends.length; i++) {
+                        $('#divCommonTrends').append("<div>" + commonTrends[i] + "</div>");
+                        resultTrends.push(commonTrends[i]);
+                    }
+                }
+          
+                var totalChars = 0;
+                $.each(resultTrends, function (index, value) {
+                    totalChars += value.trim().length;
+                });
+
+                var obj;
+                $.each(resultTrends, function (index, value) {
+                    obj = { Country: value, Trends: ((value.trim().length / totalChars) * 100).toFixed() }
+                    chartData.push(obj);
+                });
+
+                chart.dataProvider = [];
+              for (var i = 0; i < chartData.length; i++) {
+                  chart.dataProvider.push({
+                    "Country": chartData[i].Country,
+                    "Trends":  chartData[i].Trends
+                  })
+              }
+              chart.validateData();
+                                 
+
+            }
+
+        });
+    </script>
+</head>
+<body>
+    <div class="row">
+        <div class="col-md-3" id="selectiondiv">
+            <div class="heading1">
+                <h2>Select countries</h2>
+                
+            </div>
+            <div class="sourceCountry">
+                <label>Select country</label>
+                <br>
+                <img src="Images\globe.ico" width=15 height=15 left=10>
+                <select id="ddlCountries"></select>
+            </div>
+            <div class="destCountry">
+                <label>Select country</label>
+                <br>
+                <img src="Images\globe.ico" width=15 height=15>
+                <select id="ddlDestCountries"></select>
+            </div>
+            <div class="heading2">
+                <h2>Common Trends</h2>
+                <div id="divCommonTrends">
+                </div>
+            </div>
+        </div>
+            <div class="col-md-9">
+            <div id="chartdiv"></div>
+            </div>
+    </div>
+
+</body>
+</html>
